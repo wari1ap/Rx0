@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Camera</title><link rel="stylesheet" href="/static/style.css"></head><body><div class="wrap">
+<header><h1>📱 Phone Camera</h1><button class="ghost" onclick="toggleTheme()">◐</button></header>
+<div class="card"><video id="v" playsinline muted autoplay></video><p><span class="dot" id="dot"></span><span id="msg">Idle</span></p>
+<button id="go">Start Camera</button></div></div>
+<canvas id="c" width="640" height="360" hidden></canvas>
+<script src="/static/theme.js"></script>
+<script>
+const FPS=5,v=document.getElementById("v"),c=document.getElementById("c"),ctx=c.getContext("2d");
+const msg=t=>document.getElementById("msg").textContent=t, dot=on=>document.getElementById("dot").classList.toggle("on",on);
+let ws,running=false;
+function connect(){
+  ws=new WebSocket(`${location.protocol==="https:"?"wss":"ws"}://${location.host}/ws/camera`);
+  ws.onopen=()=>{msg("Connected, sending frames");send()};
+  ws.onmessage=e=>{const d=JSON.parse(e.data);if(d.status==="Camera Connected"){dot(true);msg(`Camera Connected · people ${d.people}`)}setTimeout(send,1000/FPS)};
+  ws.onclose=()=>{dot(false);msg("Disconnected, reconnecting…");if(running)setTimeout(connect,2000)};
+}
+function send(){
+  if(ws.readyState!==1)return;
+  if(!v.videoWidth)return setTimeout(send,200);
+  ctx.drawImage(v,0,0,640,360);ws.send(c.toDataURL("image/jpeg",0.6));
+}
+document.getElementById("go").onclick=async()=>{
+  try{
+    v.srcObject=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+    running=true;msg("Camera started, connecting…");connect();
+  }catch(e){msg("Camera error: "+e.message+" (need HTTPS + permission)")}
+};
+</script></body></html>
